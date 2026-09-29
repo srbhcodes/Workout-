@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const mediaRoot = path.join(root, "public");
 const media = /\.(gif|webp|png|jpe?g)$/i;
 
 function workoutData() {
@@ -54,9 +55,10 @@ function workoutMedia() {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = decodeURIComponent((req.url || "").split("?")[0]);
-        if (!media.test(pathname) || pathname.includes("..")) return next();
-        const file = path.join(root, pathname);
-        if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        const rel = pathname.replace(/^\/+/, "");
+        if (!media.test(rel) || rel.includes("..")) return next();
+        const file = path.resolve(mediaRoot, rel);
+        if (!file.startsWith(mediaRoot + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
           return next();
         }
         res.setHeader("Content-Type", types[path.extname(file).toLowerCase()] || "application/octet-stream");
@@ -66,9 +68,10 @@ function workoutMedia() {
     closeBundle() {
       const out = path.join(root, "dist");
       fs.mkdirSync(out, { recursive: true });
-      for (const name of fs.readdirSync(root)) {
+      if (!fs.existsSync(mediaRoot)) return;
+      for (const name of fs.readdirSync(mediaRoot)) {
         if (!media.test(name)) continue;
-        fs.copyFileSync(path.join(root, name), path.join(out, name));
+        fs.copyFileSync(path.join(mediaRoot, name), path.join(out, name));
       }
     },
   };
